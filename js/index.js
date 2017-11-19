@@ -264,7 +264,7 @@ var RegisterLogin = function RegisterLogin(props) {
       React.createElement(
         MenuText,
         null,
-        "Please log in"
+        "Log in"
       )
     ),
     React.createElement(
