@@ -1,0 +1,473 @@
+
+var config = {
+    apiKey: "AIzaSyD2B3Uqt_xVtwUS74pXGQbn0bVN4KPT03E",
+    authDomain: "pooptracker-79b4b.firebaseapp.com",
+    databaseURL: "https://pooptracker-79b4b.firebaseio.com",
+    projectId: "pooptracker-79b4b",
+    storageBucket: "pooptracker-79b4b.appspot.com",
+    messagingSenderId: "147343750066"
+  };
+  firebase.initializeApp(config);
+
+////local storage stuff
+const storageAvailable = (type) =>{
+  try {
+    ////try to talk to the local storage area
+    
+    const storage = window[type],
+          x = '___storage_test___';
+    ///try putting x into the localStorage
+    storage.setItem(x, x)
+    storage.removeItem(x);
+    return true;
+  } catch(e){
+    ///in case of failure
+    ///treat the error like any error in the browser
+    return e instanceof DOMException && (
+      e.code === 22 ||
+      e.code === 1014 ||
+      e.name === 'QuotaExceededError' ||
+      e.name === 'NS_ERROR_COM_QUOTA_REACHED') &&
+      storage.length !== 0;
+    
+  }
+}
+
+const poopsFromStorage = () =>{
+  console.log('putting poop in storage')
+  if(storageAvailable('localStorage')){
+    const pooptotal = window.localStorage.getItem('pooptotal');
+    return pooptotal || 0;
+  } else{
+    return 0;
+  }
+}
+
+const putPoopInStorage = (amount=1) =>{
+  console.log('getting coffee from storage');
+  if(storageAvailable('localStorage')){
+    ///get the current total
+    const pooptotal = Number( window.localStorage.getItem('pooptotal')) || 0;
+    ///increase the current total
+    let newTotal = pooptotal + amount;
+    if(amount>1){
+      newTotal = amount;
+    }
+    window.localStorage.setItem('pooptotal', newTotal);
+  }
+}
+
+//Beginning of styled components
+const styled = styled.default;
+
+
+const PRIMARYCOLOR ={
+  COLOR: '#8e24aa', 
+  SECONDARY: '#00e676',
+  TEXTDARK: '#000000',
+  TEXTLIGHT: '#ffffff',
+  TEXTALPHAMIN:'.59',
+  TEXTALPHAMAX:'1'
+};
+
+
+const Row = styled.div`
+  padding: 0 ${props => props.space ? props.space : '0'};
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  justify-content: ${props => props.rowJustify ? props.rowJustify: "center"};
+
+  @media (max-width: 700px) {
+		flex-direction: ${props => props.stack ? 'column' : 'row'};
+	}
+`
+
+const Column = styled.div`
+  padding: ${props => props.space ? props.space : '0'} 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  max-width: ${props => props.colMaxWidth ? props.colMaxWidth: "none"};
+`
+const Container = Column.extend`
+  justify-content: center;
+  width:100%;
+  align-items: center;
+  padding: 2em;
+`
+
+const Paper = Column.extend`
+ box-shadow:  0 1px 3px 0 rgba(0,0,0,.2), 0 1px 1px 0 rgba(0,0,0,.14), 0 2px 1px -1px rgba(0,0,0,.12);
+  justify-content: center;
+  align-items: center;
+  margin: 20px;
+  padding: ${props => props.paperPadding ? props.paperPadding: "20px"};
+  margin-top: 50px;
+  background-color: #e1e2e1;
+`
+
+const InputField = styled.input`
+width: 100%;
+margin-bottom: 1em;
+border: none;
+border-bottom: 1px solid #d2d0d0;
+
+:focus{
+  border: none;
+  outline: none;
+  border-bottom: 2px solid ${PRIMARYCOLOR.COLOR};
+  border-right: 2px solid ${PRIMARYCOLOR.COLOR};
+}
+`
+
+const Form = styled.form`
+display: flex;
+flex-direction: column;
+width: 300px;
+padding: 15px;
+`
+
+const FormLabel = styled.h4`
+margin-top: 10px;
+text-align: left;
+padding: 0xp 15px;
+`
+
+const MenuBar = styled.section`
+background: ${PRIMARYCOLOR.COLOR};
+width: 100%;
+box-shadow:  0 1px 3px 0 rgba(0,0,0,.5);
+
+`
+
+const MenuText = styled.h4`
+font-weight: 500;
+padding: 20px;
+color: ${PRIMARYCOLOR.TEXTLIGHT};
+`
+
+const MouseText = styled.p`
+font-size: 8px;
+position: absolute;
+`
+
+const SubmitButton = styled.button`
+width: 46%;
+max-width: 100px;
+background: #efefef;
+border: none;
+padding: 8px;
+border-radius: 2px; 
+color: ${PRIMARYCOLOR.TEXTCOLOR};
+text-transform: uppercase;
+font-size: 12px;
+outline: none;
+cursor: pointer;
+  
+  :hover {
+    background-color: ${PRIMARYCOLOR.COLOR};
+    color: white;
+  }
+`
+const StyledButton = styled.button`
+  color:white;
+  max-width:150px;
+  border:none;
+  padding:10px;
+  border-radius:20px; 
+  background: ${PRIMARYCOLOR.SECONDARY}
+  text-transform:uppercase;
+  font-size:.9em;
+  margin-bottom:25px;
+  cursor:pointer;
+
+  :hover {
+    background-color: #5c007a;
+  }
+`
+
+/////Main functionality
+class PoopData extends React.Component{
+  constructor(){
+    super();
+    this.state={
+      poopsHad: 1
+    } 
+  }
+  componentWillMount(){
+    this.initializeData();
+    console.log("I'm about to be put on the screen!");
+    this.setState(
+    {poopsHad: poopsFromStorage() },function(){
+      console.log(this.state);
+    }
+    )
+  }
+  initializeData(){
+    firebase.database().ref('poops').on('value', (snapshot)=>{
+      const dbTotal = snapshot.val().poopsHad || 0;
+      const localTotal = poopsFromStorage();
+      ///did we get some data?
+      if(dbTotal>localTotal){
+        //update the local total
+        putPoopInStorage(dbTotal);
+      } else if(localTotal > dbTotal){
+        ///update the database
+        firebase.database().ref('poops').set({poopsHad: localTotal})
+      } else if(localTotal == dbTotal){
+        console.log('You are synced to database!')
+      }
+      
+      
+      
+      
+      if(snapshot){
+        this.setState( snapshot.val() );
+      }
+})
+  }
+  
+  takePoop(){
+    
+    ///update the local storage...
+    ///update the state
+    let temp = Number(this.state.poopsHad);///Total or pooptotal?
+    this.setState({
+      poopsHad: temp +1
+    }, ()=>{
+      ///put the data in the database
+      firebase.database().ref('poops').set({poopsHad: this.state.poopsHad})
+      putPoopInStorage();
+    })
+  }
+  
+  
+  render() {
+    return(
+      <div>
+        <UI total={this.state.poopsHad} drink={this.takePoop.bind(this)} />  
+      </div>
+    )
+  }
+}
+
+
+
+const ProxiedButton = (props)=>{
+  const testMe = (event)=>{
+    props.action();
+  }
+  return(
+  <StyledButton className="poopButton" onClick={testMe}>{props.label}</StyledButton>//Something seems wrong here with the onClick...also, props.label?
+  )
+}
+///First React Component
+const UI = (props) =>{
+  return(
+  <Container>
+     <Paper> 
+        <MenuBar>
+          <Row>
+          <MenuText>Hello</MenuText>
+          </Row>
+       </MenuBar>
+      <h1>Welcome Back {props.name}</h1>
+      <h4>Have you pooped today?</h4>
+      <p>Let's track some numbers to find out</p>
+      <h5>Total Poops: {props.total}</h5>
+      <ProxiedButton action={props.drink} label="poop!" />         
+    </Paper>
+        
+  </Container>
+  )
+}
+
+
+/////End main functionality
+const RegisterLogin = (props) =>{
+  let fields= 
+      <Paper paperPadding="0px" colMaxWidth="300px">
+        <MenuBar>
+          <MenuText>Please log in</MenuText>
+        </MenuBar>
+        <Form>
+          <div>
+          <label>
+            <FormLabel>Email:</FormLabel>
+            <div className="hintError">
+            {props.showHintEmail && <MouseText>Please use a valid email</MouseText>}
+            <InputField type="text" name="email" onChange={props.action} value={props.email} required pattern="/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$/" />
+            </div>
+          </label>
+          </div>
+          <div>
+          <label>
+            <FormLabel>Password:</FormLabel>
+            <div className="hintError">
+            {props.showHintPassword && <MouseText>Minimum 6 characters</MouseText>}
+            <InputField type="password" name="password" onChange={props.action} value={props.password} required pattern=".{6,}" />
+            </div>
+          </label>
+          </div>
+            <Row rowJustify="space-between">
+              <SubmitButton onClick={props.submit} type="submit">Register</SubmitButton>
+              <SubmitButton onClick={props.logIn} type="submit">Login</SubmitButton>
+           </Row>
+        </Form>
+      </Paper>
+  
+  return(
+    <div>
+      {fields}
+    </div>
+  )
+}
+
+
+//stateful componenet
+//tracks the authentication state (Boolean)
+class AuthState extends React.Component{
+  constructor(props){
+    super(props);
+    ///set the default state
+    this.state={
+      authenticated: true,
+      name:"",
+      errors:{}
+      
+      
+    }
+  }
+  
+  ///component lifecycle
+  componentWillMount(){
+    
+    this.initAuthentication();
+  
+  }
+  
+  // step 1. start listening to firebase authentication
+  initAuthentication(){
+    console.log("Start listening to Firebase auth")
+    firebase.auth().onAuthStateChanged(
+      user=>{
+        console.log("Auth state has changed!!");
+        if(user){
+          console.log("Person is authenticated")
+          this.setState({
+            authenticated: true,
+            email: null,
+            password: null
+          })
+        }else{
+          console.log("Person is NOT authenticated")
+          this.setState({
+            authenticated: false
+          })
+        }
+      }
+    )
+  }
+  
+  ///anytime the user is typing
+  onValueChange(event){
+    
+    this.setState({
+      [event.target.name] : event.target.value
+    })
+    const validity = event.target.validity;
+    console.log(validity);
+    if(!validity.valid){
+      this.setState({
+        errors: {[event.target.name+"Error"]: true}
+      })
+    }else{
+      this.setState({
+        errors: {[event.target.name+"Error"]: false}
+      })
+    }
+  }
+  
+  
+  onSubmit(evt){
+    evt.preventDefault();
+    this.register();
+  }
+  
+  //2. register a new user
+  register(){
+    firebase.auth().createUserWithEmailAndPassword(this.state.email, this.state.password).then( ()=>{
+      ///if it succeeds
+      console.log("it succeeded!!!")
+    }).catch((err)=>{
+      console.log("It failed ");
+      console.log(err);
+      alert(err.message);
+    })
+  }
+  
+  //3. login a registered user
+  login(evt){
+    evt.preventDefault();
+    console.log("log the user in");
+    firebase.auth().signInWithEmailAndPassword(this.state.email, this.state.password).then( ()=>{
+      console.log("login succeeded");
+    }).catch( (err)=>{
+      console.log("Failed login");
+      console.log(err);
+      alert(err.message);
+    })
+  }
+  
+  //4. logout a registered user
+  logout(){
+    firebase.auth() .signOut();
+  }
+  
+  renderChildren(children){
+    return React.Children.map(children, child=>{
+      if(child.props.authenticationRequired && !this.state.authenticated){
+        return(
+      <RegisterLogin authenticated={this.state.authenticated} name={this.state.name} email={this.state.email} action={this.onValueChange.bind(this)} password={this.state.password}  submit={this.onSubmit.bind(this)} logOut={this.logout.bind(this)} logIn={this.login.bind(this)} showHintEmail={this.state.errors.emailError} showHintPassword={this.state.errors.passwordError} />
+    )
+      }
+      const cloned = React.cloneElement(child, {
+        authenticated: this.state.authenticated,
+        logOut: this.logout.bind(this)
+      })
+      return cloned;
+    })
+  }
+  
+  render(){
+    return(
+      <div>
+        { this.renderChildren(this.props.children) }
+      </div>
+    )
+  }
+}
+
+class Greeting extends React.Component{
+  constructor(){
+    super();
+  }
+  render(){
+    return(
+      <div>
+        <button onClick={this.props.logOut}>Log Out</button>
+        <PoopData />
+      </div>
+    )
+  }
+}
+
+const AuthenticationProvider = props =>{
+  return(
+    <AuthState>
+      <Greeting authenticationRequired />
+    </AuthState>
+  )
+}
+ ReactDOM.render(<AuthenticationProvider />, document.querySelector('#app'))
